@@ -1,0 +1,8 @@
+{
+  "devDependencies": {
+    "@types/node": "^22.19.9",
+    "hardhat": "^3.1.7",
+    "typescript": "~5.8.0"
+  },
+  "type": "module"
+}
