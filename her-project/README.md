@@ -1,40 +1,64 @@
-# React + Python Flask + PostgreSQL Template
+# CrowdfundHer
 
-A fullstack application with Python backend and React frontend.
+A Kickstarter-like platform where users can invest in women-led businesses using blockchain (Ethereum).
+
+## Features
+
+- **Client-only frontend** — No backend required; connects directly to smart contract
+- **Sample businesses** — 4 pre-configured campaigns to invest in
+- **Blockchain investment** — Invest with ETH via MetaMask
+- **Demo mode** — Simulator for testing without a wallet
 
 ## Tech Stack
 
-### Frontend
-- **React 18** - Modern UI library
-- **Axios** - HTTP client for API calls
-- Runs on port **3000**
+- **Frontend**: React 18, Ethers.js
+- **Smart Contract**: Solidity 0.8.28 (CrowdfundingPlatform)
+- **Deployment**: Hardhat
 
-### Backend
-- **Python 3.11** - Programming language
-- **Flask** - Lightweight web framework
-- **psycopg2** - PostgreSQL adapter for Python
-- **Flask-CORS** - Cross-origin resource sharing
-- Runs on port **8000**
+## Quick Start
 
-### Database
-- **PostgreSQL 15** - Relational database
-- Automatically creates tables on startup
-- Persistent data storage with Docker volumes
+### Demo Mode (no wallet)
 
-## What's Included
+1. `cd frontend && npm install`
+2. Ensure `.env` has `REACT_APP_SIMULATOR_MODE=true`
+3. `npm start`
+4. Select an account (Alice/Bob/Carol) and invest with virtual ETH
 
-- Health check endpoint
-- CRUD operations for items
-- Database connection with psycopg2
-- Hot reload for development
-- Dockerized environment
+### Live Blockchain
 
-## API Endpoints
+1. **Deploy contract**:
+   ```bash
+   cd backend
+   npm install
+   npx hardhat run scripts/deploy.js
+   ```
+   Copy the printed contract address.
 
-- `GET /api/health` - Check if backend is running
-- `GET /api/items` - Get all items
-- `POST /api/items` - Create a new item (send `{ "name": "item name" }`)
+2. **Configure frontend**:
+   - Create `frontend/.env` with:
+     ```
+     REACT_APP_CONTRACT_ADDRESS=<deployed_address>
+     REACT_APP_SIMULATOR_MODE=false
+     ```
 
-## Environment
+3. **Start frontend**:
+   ```bash
+   cd frontend && npm start
+   ```
 
-All services run in isolated Docker containers and communicate through a Docker network.
+4. Connect MetaMask and invest in campaigns.
+
+## Sample Businesses
+
+| Campaign | Goal | Description |
+|----------|------|-------------|
+| Luna's Artisan Bakery | 5 ETH | Organic sourdough & pastries |
+| GreenTech Solutions | 10 ETH | Sustainable packaging |
+| Artisan Crafts Co. | 3 ETH | Handcrafted jewelry marketplace |
+| Her Health App | 8 ETH | Women's telehealth platform |
+
+## Smart Contract
+
+- `createCampaign(goalWei, durationSeconds)` — Create a campaign
+- `invest(campaignId)` — Invest ETH (payable)
+- `withdraw(campaignId)` — Creator withdraws when goal is reached
