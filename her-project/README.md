@@ -1,64 +1,28 @@
-# CrowdfundHer
+# Crypto Simulator
 
-A Kickstarter-like platform where users can invest in women-led businesses using blockchain (Ethereum).
+A browser-based crypto trading simulator. Practice buying and selling with **simulated USD** and **simulated live-updating prices**—no wallet or blockchain required.
 
 ## Features
 
-- **Client-only frontend** — No backend required; connects directly to smart contract
-- **Sample businesses** — 4 pre-configured campaigns to invest in
-- **Blockchain investment** — Invest with ETH via MetaMask
-- **Demo mode** — Simulator for testing without a wallet
+- **Virtual balance** — Start with $10,000 USD (stored in your browser).
+- **Live prices** — Simulated prices for BTC, ETH, SOL, and DOGE that update every few seconds.
+- **Buy & sell** — Trade any supported coin; balances and portfolio persist in `localStorage`.
+- **Portfolio** — See your holdings and total equity at a glance.
 
-## Tech Stack
+## Tech
 
-- **Frontend**: React 18, Ethers.js
-- **Smart Contract**: Solidity 0.8.28 (CrowdfundingPlatform)
-- **Deployment**: Hardhat
+- **Frontend:** React 18, no backend.
 
-## Quick Start
+## Quick start
 
-### Demo Mode (no wallet)
+```bash
+cd her-project/frontend
+npm install
+npm start
+```
 
-1. `cd frontend && npm install`
-2. Ensure `.env` has `REACT_APP_SIMULATOR_MODE=true`
-3. `npm start`
-4. Select an account (Alice/Bob/Carol) and invest with virtual ETH
+Open [http://localhost:3000](http://localhost:3000). Trade with the simulated balance; refresh the page to keep your progress (data is saved in the browser).
 
-### Live Blockchain
+## Reset
 
-1. **Deploy contract**:
-   ```bash
-   cd backend
-   npm install
-   npx hardhat run scripts/deploy.js
-   ```
-   Copy the printed contract address.
-
-2. **Configure frontend**:
-   - Create `frontend/.env` with:
-     ```
-     REACT_APP_CONTRACT_ADDRESS=<deployed_address>
-     REACT_APP_SIMULATOR_MODE=false
-     ```
-
-3. **Start frontend**:
-   ```bash
-   cd frontend && npm start
-   ```
-
-4. Connect MetaMask and invest in campaigns.
-
-## Sample Businesses
-
-| Campaign | Goal | Description |
-|----------|------|-------------|
-| Luna's Artisan Bakery | 5 ETH | Organic sourdough & pastries |
-| GreenTech Solutions | 10 ETH | Sustainable packaging |
-| Artisan Crafts Co. | 3 ETH | Handcrafted jewelry marketplace |
-| Her Health App | 8 ETH | Women's telehealth platform |
-
-## Smart Contract
-
-- `createCampaign(goalWei, durationSeconds)` — Create a campaign
-- `invest(campaignId)` — Invest ETH (payable)
-- `withdraw(campaignId)` — Creator withdraws when goal is reached
+To reset your balance and holdings, clear `localStorage` for this site (e.g. in DevTools → Application → Local Storage → clear keys starting with `crypto_sim_`).
