@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import CryptoChatbot from './CryptoChatbot';
+import History from './History';
 
 const COINS = [
   {
@@ -57,6 +58,7 @@ const STORAGE_KEYS = {
   costBasis: 'crypto_sim_cost_basis',
   equityHistory: 'crypto_sim_equity_history',
   priceHistory: 'crypto_sim_price_history',
+  transactionHistory: 'crypto_sim_transaction_history',
   introComplete: 'crypto_sim_intro_complete',
   initialUsd: 'crypto_sim_initial_usd',
 };
@@ -95,6 +97,8 @@ function clearAllUserData() {
 
 // Simulated base prices (USD) – will drift randomly
 const BASE_PRICES = { btc: 43200, eth: 2280, sol: 98, doge: 0.082 };
+
+const GAS_FEE = 0.003; // Fixed fee (USD) deducted from sell transactions
 
 function randomWalk(prev, volatility = 0.002) {
   const change = (Math.random() - 0.5) * 2 * volatility * prev;
@@ -195,6 +199,23 @@ function savePriceHistory(h) {
   try {
     const trimmed = h.slice(-MAX_HISTORY_POINTS);
     localStorage.setItem(STORAGE_KEYS.priceHistory, JSON.stringify(trimmed));
+  } catch (_) {}
+}
+
+const MAX_TRANSACTIONS = 200;
+function loadTransactionHistory() {
+  try {
+    const v = localStorage.getItem(STORAGE_KEYS.transactionHistory);
+    if (!v) return [];
+    return JSON.parse(v);
+  } catch {
+    return [];
+  }
+}
+function saveTransactionHistory(t) {
+  try {
+    const trimmed = t.slice(-MAX_TRANSACTIONS);
+    localStorage.setItem(STORAGE_KEYS.transactionHistory, JSON.stringify(trimmed));
   } catch (_) {}
 }
 
@@ -453,6 +474,7 @@ function App() {
   const [costBasis, setCostBasis] = useState(loadCostBasis);
   const [equityHistory, setEquityHistory] = useState(loadEquityHistory);
   const [priceHistory, setPriceHistory] = useState(loadPriceHistory);
+  const [transactionHistory, setTransactionHistory] = useState(loadTransactionHistory);
   const [activeView, setActiveView] = useState('main');
 
   const portfolioValue = COINS.reduce((sum, c) => sum + (holdings[c.id] || 0) * (prices[c.id] || 0), 0);
@@ -542,6 +564,11 @@ function App() {
           [selectedCoin]: { totalCost: prevCost + cost, totalQty: prevQty + val },
         };
       });
+      setTransactionHistory((prev) => {
+        const next = [...prev, { t: Date.now(), type: 'buy', coin: selectedCoin, amount: val, price, usd: cost }];
+        saveTransactionHistory(next);
+        return next;
+      });
       setMessage(`Bought ${formatCrypto(val)} ${coin.symbol} for ${formatUsd(cost)}`);
     } else {
       const have = holdings[selectedCoin] || 0;
@@ -550,7 +577,8 @@ function App() {
         return;
       }
       const proceeds = val * price;
-      setUsdBalance((b) => b + proceeds);
+      const netProceeds = proceeds - GAS_FEE;
+      setUsdBalance((b) => b + netProceeds);
       setHoldings((h) => ({ ...h, [selectedCoin]: (h[selectedCoin] || 0) - val }));
       setCostBasis((cb) => {
         const cur = cb[selectedCoin];
@@ -566,7 +594,12 @@ function App() {
           },
         };
       });
-      setMessage(`Sold ${formatCrypto(val)} ${coin.symbol} for ${formatUsd(proceeds)}`);
+      setTransactionHistory((prev) => {
+        const next = [...prev, { t: Date.now(), type: 'sell', coin: selectedCoin, amount: val, price, usd: netProceeds }];
+        saveTransactionHistory(next);
+        return next;
+      });
+      setMessage(`Sold ${formatCrypto(val)} ${coin.symbol} for ${formatUsd(netProceeds)} (gas: ${formatUsd(GAS_FEE)})`);
     }
     setAmount('');
     setTimeout(() => setMessage(null), 4000);
@@ -587,6 +620,16 @@ function App() {
         <IntroPage onComplete={() => { setUsdBalance(loadNumber(STORAGE_KEYS.balance, DEFAULT_INITIAL_USD)); setIntroComplete(true); }} />
         <CryptoChatbot />
       </>
+    );
+  }
+
+  if (activeView === 'history') {
+    return (
+      <History
+        transactions={transactionHistory}
+        coins={COINS}
+        onBack={() => setActiveView('main')}
+      />
     );
   }
 
