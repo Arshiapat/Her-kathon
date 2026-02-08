@@ -1,14 +1,82 @@
 import React, { useState, useEffect, useCallback } from 'react';
 
 const COINS = [
-  { id: 'btc', name: 'Bitcoin', symbol: 'BTC', emoji: '₿' },
-  { id: 'eth', name: 'Ethereum', symbol: 'ETH', emoji: 'Ξ' },
-  { id: 'sol', name: 'Solana', symbol: 'SOL', emoji: '◎' },
-  { id: 'doge', name: 'Dogecoin', symbol: 'DOGE', emoji: 'Ð' },
+  {
+    id: 'btc',
+    name: 'Bitcoin',
+    symbol: 'BTC',
+    emoji: '₿',
+    description: 'The first cryptocurrency, created in 2009. Bitcoin is decentralized digital money that operates without a central bank. It\'s often called "digital gold" and is used for store of value and payments.',
+    howToInvest: 'Start small — you can buy fractions of a Bitcoin. Consider dollar-cost averaging (investing a fixed amount regularly) to reduce timing risk.',
+  },
+  {
+    id: 'eth',
+    name: 'Ethereum',
+    symbol: 'ETH',
+    emoji: 'Ξ',
+    description: 'A blockchain platform that runs smart contracts and powers decentralized apps (dApps). Ethereum enables NFTs, DeFi, and many other innovations beyond simple payments.',
+    howToInvest: 'Research the ecosystem first. Ethereum\'s value is tied to its network usage and developer activity. Many investors hold both Bitcoin and Ethereum for diversification.',
+  },
+  {
+    id: 'sol',
+    name: 'Solana',
+    symbol: 'SOL',
+    emoji: '◎',
+    description: 'A fast, low-cost blockchain designed for scalability. Solana can process thousands of transactions per second and supports DeFi, NFTs, and gaming applications.',
+    howToInvest: 'Solana is riskier than Bitcoin or Ethereum due to its younger ecosystem. Consider it a higher-growth, higher-volatility option and size your position accordingly.',
+  },
+  {
+    id: 'doge',
+    name: 'Dogecoin',
+    symbol: 'DOGE',
+    emoji: 'Ð',
+    description: 'Originally created as a meme coin in 2013, Dogecoin has gained mainstream adoption. It uses a simpler technology than Bitcoin and has lower transaction fees.',
+    howToInvest: 'Treat Dogecoin as speculative — it\'s heavily influenced by social media and celebrity endorsements. Only invest what you\'re comfortable losing, and avoid FOMO.',
+  },
 ];
 
-const INITIAL_USD = 10000;
-const STORAGE_KEYS = { balance: 'crypto_sim_usd', holdings: 'crypto_sim_holdings', prices: 'crypto_sim_prices' };
+const DEFAULT_INITIAL_USD = 10000;
+const STORAGE_KEYS = {
+  balance: 'crypto_sim_usd',
+  holdings: 'crypto_sim_holdings',
+  prices: 'crypto_sim_prices',
+  costBasis: 'crypto_sim_cost_basis',
+  equityHistory: 'crypto_sim_equity_history',
+  introComplete: 'crypto_sim_intro_complete',
+  initialUsd: 'crypto_sim_initial_usd',
+};
+
+function isIntroComplete() {
+  try {
+    const v = localStorage.getItem(STORAGE_KEYS.introComplete);
+    if (v === 'true') return true;
+    if (localStorage.getItem(STORAGE_KEYS.balance) != null) {
+      localStorage.setItem(STORAGE_KEYS.introComplete, 'true');
+      const bal = parseFloat(localStorage.getItem(STORAGE_KEYS.balance));
+      if (Number.isFinite(bal)) localStorage.setItem(STORAGE_KEYS.initialUsd, String(bal));
+      return true;
+    }
+    return false;
+  } catch {
+    return false;
+  }
+}
+
+function loadInitialUsd() {
+  try {
+    const v = localStorage.getItem(STORAGE_KEYS.initialUsd);
+    return v != null && Number.isFinite(parseFloat(v)) ? parseFloat(v) : DEFAULT_INITIAL_USD;
+  } catch {
+    return DEFAULT_INITIAL_USD;
+  }
+}
+
+function clearAllUserData() {
+  try {
+    Object.values(STORAGE_KEYS).forEach((key) => localStorage.removeItem(key));
+    window.location.reload();
+  } catch (_) {}
+}
 
 // Simulated base prices (USD) – will drift randomly
 const BASE_PRICES = { btc: 43200, eth: 2280, sol: 98, doge: 0.082 };
@@ -65,6 +133,40 @@ function savePrices(p) {
   } catch (_) {}
 }
 
+const EMPTY_COST_BASIS = { btc: { totalCost: 0, totalQty: 0 }, eth: { totalCost: 0, totalQty: 0 }, sol: { totalCost: 0, totalQty: 0 }, doge: { totalCost: 0, totalQty: 0 } };
+function loadCostBasis() {
+  try {
+    const v = localStorage.getItem(STORAGE_KEYS.costBasis);
+    if (!v) return { ...EMPTY_COST_BASIS };
+    const o = JSON.parse(v);
+    return { ...EMPTY_COST_BASIS, ...o };
+  } catch {
+    return { ...EMPTY_COST_BASIS };
+  }
+}
+function saveCostBasis(cb) {
+  try {
+    localStorage.setItem(STORAGE_KEYS.costBasis, JSON.stringify(cb));
+  } catch (_) {}
+}
+
+const MAX_HISTORY_POINTS = 120;
+function loadEquityHistory() {
+  try {
+    const v = localStorage.getItem(STORAGE_KEYS.equityHistory);
+    if (!v) return [];
+    return JSON.parse(v);
+  } catch {
+    return [];
+  }
+}
+function saveEquityHistory(h) {
+  try {
+    const trimmed = h.slice(-MAX_HISTORY_POINTS);
+    localStorage.setItem(STORAGE_KEYS.equityHistory, JSON.stringify(trimmed));
+  } catch (_) {}
+}
+
 function formatUsd(n) {
   if (n >= 1e6) return `$${(n / 1e6).toFixed(2)}M`;
   if (n >= 1e3) return `$${n.toFixed(2)}`;
@@ -76,14 +178,182 @@ function formatCrypto(n) {
   return n.toFixed(6);
 }
 
+function ProfitChart({ data, initialUsd }) {
+  if (!data || data.length < 2) return null;
+  const w = 800;
+  const h = 220;
+  const pad = { top: 16, right: 16, bottom: 24, left: 56 };
+  const minT = Math.min(...data.map((d) => d.t));
+  const maxT = Math.max(...data.map((d) => d.t));
+  const minV = Math.min(initialUsd * 0.95, ...data.map((d) => d.v));
+  const maxV = Math.max(initialUsd * 1.05, ...data.map((d) => d.v));
+  const rangeT = maxT - minT || 1;
+  const rangeV = maxV - minV || 1;
+  const x = (t) => pad.left + ((t - minT) / rangeT) * (w - pad.left - pad.right);
+  const y = (v) => pad.top + (1 - (v - minV) / rangeV) * (h - pad.top - pad.bottom);
+  const pathD = data.map((d, i) => `${i === 0 ? 'M' : 'L'} ${x(d.t)} ${y(d.v)}`).join(' ');
+  const baselineY = y(initialUsd);
+  return (
+    <div style={chartStyles.wrapper}>
+      <svg viewBox={`0 0 ${w} ${h}`} style={chartStyles.svg}>
+        <line x1={pad.left} y1={baselineY} x2={w - pad.right} y2={baselineY} stroke="rgba(181,107,158,0.4)" strokeDasharray="4 4" strokeWidth={1} />
+        <path d={pathD} fill="none" stroke="#b56b9e" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    </div>
+  );
+}
+
+const chartStyles = {
+  wrapper: { background: 'rgba(255,255,255,0.85)', border: '1px solid rgba(189,147,169,0.25)', borderRadius: 18, padding: 20, overflow: 'hidden' },
+  svg: { width: '100%', height: 220, display: 'block' },
+};
+
+function IntroPage({ onComplete }) {
+  const [amount, setAmount] = useState('');
+  const [error, setError] = useState(null);
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    const val = parseFloat(amount.replace(/[,$]/g, ''));
+    if (!Number.isFinite(val) || val <= 0) {
+      setError('Please enter a valid amount.');
+      return;
+    }
+    if (val > 1000000000) {
+      setError('Let\'s keep it under $1 billion for this simulation.');
+      return;
+    }
+    setError(null);
+    try {
+      localStorage.setItem(STORAGE_KEYS.balance, String(val));
+      localStorage.setItem(STORAGE_KEYS.initialUsd, String(val));
+      localStorage.setItem(STORAGE_KEYS.introComplete, 'true');
+    } catch (_) {}
+    onComplete(val);
+  };
+
+  return (
+    <div style={introStyles.container}>
+      <div style={introStyles.card}>
+        <h1 style={introStyles.title}>Crypto Simulator</h1>
+        <p style={introStyles.subtitle}>Practice trading with simulated money. No risk, just learning.</p>
+        <form onSubmit={handleSubmit} style={introStyles.form}>
+          <label style={introStyles.label}>How much would you like to invest?</label>
+          <div style={introStyles.inputRow}>
+            <span style={introStyles.dollar}>$</span>
+            <input
+              type="text"
+              inputMode="decimal"
+              placeholder="10,000"
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              style={introStyles.input}
+              autoFocus
+            />
+          </div>
+          {error && <p style={introStyles.error}>{error}</p>}
+          <button type="submit" style={introStyles.button}>Start trading</button>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+const introStyles = {
+  container: {
+    minHeight: '100vh',
+    background: 'linear-gradient(160deg, #fef7f5 0%, #faf5f8 35%, #f5f0fa 70%, #f0f4f8 100%)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 24,
+    fontFamily: '"DM Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+  },
+  card: {
+    background: 'rgba(255, 255, 255, 0.95)',
+    borderRadius: 24,
+    padding: 48,
+    maxWidth: 420,
+    width: '100%',
+    border: '1px solid rgba(189, 147, 169, 0.25)',
+    boxShadow: '0 8px 40px rgba(181, 107, 158, 0.12)',
+  },
+  title: {
+    margin: 0,
+    fontSize: '1.75rem',
+    fontWeight: 700,
+    background: 'linear-gradient(135deg, #c77b8a 0%, #b56b9e 40%, #8b7ab8 100%)',
+    WebkitBackgroundClip: 'text',
+    WebkitTextFillColor: 'transparent',
+    backgroundClip: 'text',
+    textAlign: 'center',
+  },
+  subtitle: {
+    color: '#6b6578',
+    fontSize: '0.95rem',
+    textAlign: 'center',
+    margin: '8px 0 32px',
+    lineHeight: 1.5,
+  },
+  form: { display: 'flex', flexDirection: 'column', gap: 16 },
+  label: { fontSize: '0.95rem', color: '#4a4458', fontWeight: 500 },
+  inputRow: {
+    display: 'flex',
+    alignItems: 'center',
+    border: '1px solid rgba(189, 147, 169, 0.35)',
+    borderRadius: 14,
+    paddingLeft: 16,
+    background: 'rgba(255,255,255,0.9)',
+  },
+  dollar: { fontSize: '1.25rem', color: '#6b6578', fontWeight: 500 },
+  input: {
+    flex: 1,
+    padding: '16px 16px 16px 8px',
+    fontSize: '1.25rem',
+    border: 'none',
+    background: 'transparent',
+    color: '#3d3a4a',
+    outline: 'none',
+  },
+  error: { margin: 0, fontSize: '0.9rem', color: '#c45c5c' },
+  button: {
+    padding: 16,
+    fontSize: '1rem',
+    fontWeight: 600,
+    color: '#fff',
+    background: 'linear-gradient(135deg, #b56b9e 0%, #9a5a8a 100%)',
+    border: 'none',
+    borderRadius: 14,
+    cursor: 'pointer',
+    boxShadow: '0 4px 14px rgba(181, 107, 158, 0.35)',
+    marginTop: 8,
+  },
+};
+
 function App() {
-  const [usdBalance, setUsdBalance] = useState(() => loadNumber(STORAGE_KEYS.balance, INITIAL_USD));
+  const [introComplete, setIntroComplete] = useState(isIntroComplete);
+  const [usdBalance, setUsdBalance] = useState(() => loadNumber(STORAGE_KEYS.balance, DEFAULT_INITIAL_USD));
+  const initialUsd = loadInitialUsd();
   const [holdings, setHoldings] = useState(loadHoldings);
   const [prices, setPrices] = useState(loadPrices);
   const [selectedCoin, setSelectedCoin] = useState('btc');
   const [amount, setAmount] = useState('');
   const [mode, setMode] = useState('buy'); // 'buy' | 'sell'
   const [message, setMessage] = useState(null);
+  const [hoveredCoin, setHoveredCoin] = useState(null);
+  const [costBasis, setCostBasis] = useState(loadCostBasis);
+  const [equityHistory, setEquityHistory] = useState(loadEquityHistory);
+
+  const portfolioValue = COINS.reduce((sum, c) => sum + (holdings[c.id] || 0) * (prices[c.id] || 0), 0);
+  const totalEquity = usdBalance + portfolioValue;
+
+  const recordEquityPoint = useCallback((equity) => {
+    setEquityHistory((prev) => {
+      const next = [...prev, { t: Date.now(), v: equity }];
+      saveEquityHistory(next);
+      return next;
+    });
+  }, []);
 
   const tickPrices = useCallback(() => {
     setPrices((prev) => {
@@ -104,14 +374,31 @@ function App() {
   }, [tickPrices]);
 
   useEffect(() => {
+    if (equityHistory.length === 0) {
+      const now = Date.now();
+      const seed = [
+        { t: now - 60000, v: initialUsd },
+        { t: now, v: totalEquity },
+      ];
+      setEquityHistory(seed);
+      saveEquityHistory(seed);
+    }
+  }, []);
+
+  useEffect(() => {
+    const id = setInterval(() => recordEquityPoint(totalEquity), 30000);
+    return () => clearInterval(id);
+  }, [totalEquity, recordEquityPoint]);
+
+  useEffect(() => {
     saveBalance(usdBalance);
   }, [usdBalance]);
   useEffect(() => {
     saveHoldings(holdings);
   }, [holdings]);
-
-  const portfolioValue = COINS.reduce((sum, c) => sum + (holdings[c.id] || 0) * (prices[c.id] || 0), 0);
-  const totalEquity = usdBalance + portfolioValue;
+  useEffect(() => {
+    saveCostBasis(costBasis);
+  }, [costBasis]);
 
   const handleTrade = () => {
     const val = parseFloat(amount);
@@ -129,6 +416,15 @@ function App() {
       }
       setUsdBalance((b) => b - cost);
       setHoldings((h) => ({ ...h, [selectedCoin]: (h[selectedCoin] || 0) + val }));
+      setCostBasis((cb) => {
+        const cur = cb[selectedCoin];
+        const prevCost = (cur && typeof cur.totalCost === 'number') ? cur.totalCost : 0;
+        const prevQty = (cur && typeof cur.totalQty === 'number') ? cur.totalQty : 0;
+        return {
+          ...cb,
+          [selectedCoin]: { totalCost: prevCost + cost, totalQty: prevQty + val },
+        };
+      });
       setMessage(`Bought ${formatCrypto(val)} ${coin.symbol} for ${formatUsd(cost)}`);
     } else {
       const have = holdings[selectedCoin] || 0;
@@ -139,6 +435,20 @@ function App() {
       const proceeds = val * price;
       setUsdBalance((b) => b + proceeds);
       setHoldings((h) => ({ ...h, [selectedCoin]: (h[selectedCoin] || 0) - val }));
+      setCostBasis((cb) => {
+        const cur = cb[selectedCoin];
+        const prevCost = (cur && typeof cur.totalCost === 'number') ? cur.totalCost : 0;
+        const prevQty = (cur && typeof cur.totalQty === 'number') ? cur.totalQty : 0;
+        if (prevQty <= 0) return cb;
+        const ratio = val / prevQty;
+        return {
+          ...cb,
+          [selectedCoin]: {
+            totalCost: prevCost * (1 - ratio),
+            totalQty: prevQty - val,
+          },
+        };
+      });
       setMessage(`Sold ${formatCrypto(val)} ${coin.symbol} for ${formatUsd(proceeds)}`);
     }
     setAmount('');
@@ -150,17 +460,28 @@ function App() {
   const holding = holdings[selectedCoin] || 0;
   const holdingValue = holding * price;
 
+  const profitVsInitial = totalEquity - initialUsd;
+
+  const chartData = equityHistory.length >= 2 ? equityHistory : [];
+
+  if (!introComplete) {
+    return <IntroPage onComplete={() => { setUsdBalance(loadNumber(STORAGE_KEYS.balance, DEFAULT_INITIAL_USD)); setIntroComplete(true); }} />;
+  }
+
   return (
     <div style={styles.container}>
       <header style={styles.header}>
         <div style={styles.headerInner}>
           <h1 style={styles.logo}>Crypto Simulator</h1>
-          <p style={styles.tagline}>Practice trading with simulated USD and live-updating prices</p>
+          <p style={styles.tagline}>Learn at your own pace — practice trading with simulated USD and live-updating prices. No pressure, just progress.</p>
           <div style={styles.statsRow}>
             <span style={styles.stat}>USD: {formatUsd(usdBalance)}</span>
             <span style={styles.stat}>Portfolio: {formatUsd(portfolioValue)}</span>
             <span style={styles.statStrong}>Total: {formatUsd(totalEquity)}</span>
           </div>
+          <button type="button" style={styles.startFreshBtn} onClick={clearAllUserData}>
+            Start fresh
+          </button>
         </div>
       </header>
 
@@ -223,11 +544,32 @@ function App() {
           </div>
         </section>
 
+        {chartData.length >= 2 && (
+          <section style={styles.section}>
+            <h2 style={styles.sectionTitle}>Portfolio Value Over Time</h2>
+            <p style={styles.profitSummary}>
+              {profitVsInitial >= 0 ? (
+                <span style={styles.profitPositive}>+{formatUsd(profitVsInitial)}</span>
+              ) : (
+                <span style={styles.profitNegative}>{formatUsd(profitVsInitial)}</span>
+              )}
+              {' '}vs. starting {formatUsd(initialUsd)}
+            </p>
+            <ProfitChart data={chartData} initialUsd={initialUsd} />
+          </section>
+        )}
+
         <section style={styles.section}>
           <h2 style={styles.sectionTitle}>Live Prices</h2>
+          <p style={styles.hoverHint}>Hover over a coin to learn more about it</p>
           <div style={styles.grid}>
             {COINS.map((c) => (
-              <div key={c.id} style={styles.coinCard}>
+              <div
+                key={c.id}
+                style={{ ...styles.coinCard, ...(hoveredCoin === c.id ? styles.coinCardHovered : {}) }}
+                onMouseEnter={() => setHoveredCoin(c.id)}
+                onMouseLeave={() => setHoveredCoin(null)}
+              >
                 <span style={styles.coinEmoji}>{c.emoji}</span>
                 <span style={styles.coinSymbol}>{c.symbol}</span>
                 <span style={styles.coinName}>{c.name}</span>
@@ -236,6 +578,12 @@ function App() {
                   <span style={styles.holding}>
                     You own {formatCrypto(holdings[c.id])} ({formatUsd((holdings[c.id] || 0) * (prices[c.id] || 0))})
                   </span>
+                )}
+                {hoveredCoin === c.id && (
+                  <div style={styles.coinTooltip}>
+                    <p style={styles.tooltipDescription}>{c.description}</p>
+                    <p style={styles.tooltipHowTo}><strong>How to invest:</strong> {c.howToInvest}</p>
+                  </div>
                 )}
               </div>
             ))}
@@ -246,21 +594,39 @@ function App() {
           <h2 style={styles.sectionTitle}>Portfolio</h2>
           <div style={styles.portfolioTable}>
             {COINS.filter((c) => (holdings[c.id] || 0) > 0).length === 0 ? (
-              <p style={styles.empty}>No holdings yet. Buy some crypto above.</p>
+              <p style={styles.empty}>No holdings yet. Make your first trade above to get started.</p>
             ) : (
-              COINS.filter((c) => (holdings[c.id] || 0) > 0).map((c) => {
+              <>
+                <div style={styles.portfolioHeader}>
+                  <span></span><span>Coin</span><span>Qty</span><span>Price</span><span>Value</span><span>Buy price · Change</span>
+                </div>
+                {COINS.filter((c) => (holdings[c.id] || 0) > 0).map((c) => {
                 const qty = holdings[c.id] || 0;
-                const value = qty * (prices[c.id] || 0);
+                const currentPrice = prices[c.id] || 0;
+                const value = qty * currentPrice;
+                const cb = costBasis[c.id];
+                const totalCost = (cb && typeof cb.totalCost === 'number') ? cb.totalCost : 0;
+                const totalQty = (cb && typeof cb.totalQty === 'number') ? cb.totalQty : 0;
+                const avgCost = totalQty > 0 ? totalCost / totalQty : 0;
+                const priceDiff = avgCost > 0 ? ((currentPrice - avgCost) / avgCost) * 100 : 0;
                 return (
                   <div key={c.id} style={styles.portfolioRow}>
                     <span style={styles.coinEmoji}>{c.emoji}</span>
                     <span>{c.symbol}</span>
                     <span>{formatCrypto(qty)}</span>
-                    <span>{formatUsd(prices[c.id] || 0)}</span>
+                    <span>{formatUsd(currentPrice)}</span>
                     <span style={styles.value}>{formatUsd(value)}</span>
+                    <span style={priceDiff >= 0 ? styles.priceUp : styles.priceDown}>
+                      {avgCost > 0 ? (
+                        <>Buy: {formatUsd(avgCost)} · {priceDiff >= 0 ? '+' : ''}{priceDiff.toFixed(1)}%</>
+                      ) : (
+                        '—'
+                      )}
+                    </span>
                   </div>
                 );
-              })
+              })}
+              </>
             )}
           </div>
         </section>
@@ -272,13 +638,13 @@ function App() {
 const styles = {
   container: {
     minHeight: '100vh',
-    background: 'linear-gradient(165deg, #0a0a0f 0%, #12121a 50%, #0d1117 100%)',
-    color: '#e6edf3',
-    fontFamily: '"JetBrains Mono", "SF Mono", Monaco, Consolas, sans-serif',
+    background: 'linear-gradient(160deg, #fef7f5 0%, #faf5f8 35%, #f5f0fa 70%, #f0f4f8 100%)',
+    color: '#3d3a4a',
+    fontFamily: '"DM Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
   },
   header: {
-    padding: '24px 20px',
-    borderBottom: '1px solid rgba(255,255,255,0.06)',
+    padding: '28px 20px',
+    borderBottom: '1px solid rgba(189, 147, 169, 0.2)',
   },
   headerInner: {
     maxWidth: '900px',
@@ -286,163 +652,238 @@ const styles = {
     textAlign: 'center',
   },
   logo: {
-    fontSize: '1.75rem',
+    fontSize: '1.85rem',
     fontWeight: 700,
     margin: 0,
-    background: 'linear-gradient(135deg, #58a6ff 0%, #a371f7 100%)',
+    background: 'linear-gradient(135deg, #c77b8a 0%, #b56b9e 40%, #8b7ab8 100%)',
     WebkitBackgroundClip: 'text',
     WebkitTextFillColor: 'transparent',
     backgroundClip: 'text',
   },
   tagline: {
-    color: '#8b949e',
+    color: '#6b6578',
     fontSize: '0.95rem',
-    margin: '4px 0 16px',
+    margin: '8px 0 18px',
+    lineHeight: 1.5,
   },
   statsRow: {
     display: 'flex',
     flexWrap: 'wrap',
     justifyContent: 'center',
-    gap: '16px',
+    gap: '20px',
     alignItems: 'center',
   },
   stat: {
-    color: '#8b949e',
+    color: '#6b6578',
     fontSize: '0.9rem',
   },
   statStrong: {
     fontSize: '1rem',
     fontWeight: 600,
-    color: '#58a6ff',
+    color: '#b56b9e',
+  },
+  startFreshBtn: {
+    marginTop: 16,
+    padding: '8px 16px',
+    fontSize: '0.85rem',
+    background: 'transparent',
+    border: '1px solid rgba(181, 107, 158, 0.4)',
+    borderRadius: 8,
+    color: '#8b4a6b',
+    cursor: 'pointer',
   },
   message: {
-    background: 'rgba(35,134,54,0.2)',
-    color: '#3fb950',
-    padding: '12px 20px',
+    background: 'rgba(139, 165, 136, 0.2)',
+    color: '#4a7c59',
+    padding: '14px 20px',
     margin: '0 20px 20px',
-    borderRadius: '8px',
+    borderRadius: '14px',
     maxWidth: '600px',
     marginLeft: 'auto',
     marginRight: 'auto',
     textAlign: 'center',
+    border: '1px solid rgba(139, 165, 136, 0.3)',
   },
   main: {
     maxWidth: '900px',
     margin: '0 auto',
-    padding: '32px 20px',
+    padding: '36px 20px',
   },
   section: {
-    marginBottom: '40px',
+    marginBottom: '44px',
   },
   sectionTitle: {
-    fontSize: '1.25rem',
+    fontSize: '1.2rem',
     fontWeight: 600,
     margin: '0 0 16px',
-    color: '#e6edf3',
+    color: '#4a4458',
+    letterSpacing: '-0.02em',
   },
   tradeCard: {
-    background: 'rgba(255,255,255,0.03)',
-    border: '1px solid rgba(255,255,255,0.08)',
-    borderRadius: '12px',
-    padding: '24px',
+    background: 'rgba(255, 255, 255, 0.85)',
+    border: '1px solid rgba(189, 147, 169, 0.25)',
+    borderRadius: '20px',
+    padding: '28px',
+    boxShadow: '0 4px 24px rgba(181, 107, 158, 0.08)',
   },
   toggleRow: {
     display: 'flex',
-    gap: '8px',
-    marginBottom: '16px',
+    gap: '10px',
+    marginBottom: '20px',
   },
   toggleBtn: {
-    padding: '8px 20px',
+    padding: '10px 24px',
     fontSize: '0.95rem',
-    background: 'rgba(255,255,255,0.06)',
-    border: '1px solid rgba(255,255,255,0.1)',
-    borderRadius: '8px',
-    color: '#8b949e',
+    background: 'rgba(245, 240, 250, 0.8)',
+    border: '1px solid rgba(189, 147, 169, 0.3)',
+    borderRadius: '12px',
+    color: '#6b6578',
     cursor: 'pointer',
+    transition: 'all 0.2s ease',
   },
   toggleActive: {
-    background: 'rgba(88,166,255,0.2)',
-    borderColor: '#58a6ff',
-    color: '#58a6ff',
+    background: 'linear-gradient(135deg, rgba(199, 123, 138, 0.15) 0%, rgba(181, 107, 158, 0.2) 100%)',
+    borderColor: '#b56b9e',
+    color: '#8b4a6b',
   },
-  selectRow: { marginBottom: '8px' },
+  selectRow: { marginBottom: '10px' },
   label: {
     display: 'block',
-    fontSize: '0.85rem',
-    color: '#8b949e',
-    marginBottom: '4px',
+    fontSize: '0.875rem',
+    color: '#5a5568',
+    marginBottom: '6px',
   },
   select: {
     width: '100%',
-    padding: '10px 12px',
+    padding: '12px 14px',
     fontSize: '1rem',
-    background: 'rgba(0,0,0,0.3)',
-    border: '1px solid rgba(255,255,255,0.12)',
-    borderRadius: '8px',
-    color: '#e6edf3',
+    background: 'rgba(255, 255, 255, 0.9)',
+    border: '1px solid rgba(189, 147, 169, 0.3)',
+    borderRadius: '12px',
+    color: '#3d3a4a',
+    boxSizing: 'border-box',
   },
   priceRow: {
     fontSize: '0.9rem',
-    color: '#8b949e',
-    marginBottom: '16px',
+    color: '#6b6578',
+    marginBottom: '18px',
   },
-  inputGroup: { marginBottom: '16px' },
+  inputGroup: { marginBottom: '18px' },
   input: {
     width: '100%',
     padding: '12px 16px',
     fontSize: '1rem',
-    background: 'rgba(0,0,0,0.3)',
-    border: '1px solid rgba(255,255,255,0.12)',
-    borderRadius: '8px',
-    color: '#e6edf3',
+    background: 'rgba(255, 255, 255, 0.9)',
+    border: '1px solid rgba(189, 147, 169, 0.3)',
+    borderRadius: '12px',
+    color: '#3d3a4a',
     boxSizing: 'border-box',
   },
   tradeButton: {
     width: '100%',
-    padding: '12px',
+    padding: '14px',
     fontSize: '1rem',
     fontWeight: 600,
     color: '#fff',
-    background: 'linear-gradient(135deg, #238636 0%, #2ea043 100%)',
+    background: 'linear-gradient(135deg, #b56b9e 0%, #9a5a8a 100%)',
     border: 'none',
-    borderRadius: '8px',
+    borderRadius: '14px',
     cursor: 'pointer',
+    boxShadow: '0 4px 14px rgba(181, 107, 158, 0.35)',
   },
   grid: {
     display: 'grid',
     gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
-    gap: '16px',
+    gap: '18px',
+  },
+  hoverHint: {
+    fontSize: '0.85rem',
+    color: '#6b6578',
+    margin: '-8px 0 16px',
   },
   coinCard: {
-    background: 'rgba(255,255,255,0.03)',
-    border: '1px solid rgba(255,255,255,0.08)',
-    borderRadius: '12px',
-    padding: '16px',
+    position: 'relative',
+    background: 'rgba(255, 255, 255, 0.85)',
+    border: '1px solid rgba(189, 147, 169, 0.25)',
+    borderRadius: '18px',
+    padding: '20px',
     display: 'flex',
     flexDirection: 'column',
-    gap: '4px',
+    gap: '6px',
+    boxShadow: '0 2px 16px rgba(181, 107, 158, 0.06)',
+    transition: 'box-shadow 0.2s ease, border-color 0.2s ease',
+    cursor: 'default',
   },
-  coinEmoji: { fontSize: '1.5rem' },
-  coinSymbol: { fontWeight: 600, color: '#e6edf3' },
-  coinName: { fontSize: '0.8rem', color: '#8b949e' },
-  coinPrice: { fontSize: '1rem', color: '#58a6ff', fontWeight: 600 },
-  holding: { fontSize: '0.75rem', color: '#3fb950', marginTop: '4px' },
+  coinCardHovered: {
+    boxShadow: '0 8px 32px rgba(181, 107, 158, 0.15)',
+    borderColor: 'rgba(181, 107, 158, 0.4)',
+  },
+  coinTooltip: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    background: 'rgba(255, 255, 255, 0.98)',
+    borderRadius: '18px',
+    padding: '20px',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '12px',
+    boxShadow: '0 8px 32px rgba(181, 107, 158, 0.2)',
+    overflow: 'auto',
+    zIndex: 1,
+  },
+  tooltipDescription: {
+    margin: 0,
+    fontSize: '0.875rem',
+    color: '#4a4458',
+    lineHeight: 1.55,
+  },
+  tooltipHowTo: {
+    margin: 0,
+    fontSize: '0.8rem',
+    color: '#6b6578',
+    lineHeight: 1.5,
+  },
+  coinEmoji: { fontSize: '1.6rem' },
+  coinSymbol: { fontWeight: 600, color: '#4a4458' },
+  coinName: { fontSize: '0.8rem', color: '#6b6578' },
+  coinPrice: { fontSize: '1rem', color: '#b56b9e', fontWeight: 600 },
+  holding: { fontSize: '0.75rem', color: '#4a7c59', marginTop: '6px' },
   portfolioTable: {
-    background: 'rgba(255,255,255,0.03)',
-    border: '1px solid rgba(255,255,255,0.08)',
-    borderRadius: '12px',
-    padding: '16px',
+    background: 'rgba(255, 255, 255, 0.85)',
+    border: '1px solid rgba(189, 147, 169, 0.25)',
+    borderRadius: '18px',
+    padding: '20px',
+    boxShadow: '0 2px 16px rgba(181, 107, 158, 0.06)',
+  },
+  portfolioHeader: {
+    display: 'grid',
+    gridTemplateColumns: '32px 50px 1fr 1fr 1fr 1fr',
+    gap: '12px',
+    alignItems: 'center',
+    padding: '0 0 10px',
+    borderBottom: '1px solid rgba(189, 147, 169, 0.2)',
+    fontSize: '0.8rem',
+    color: '#6b6578',
+    fontWeight: 600,
   },
   portfolioRow: {
     display: 'grid',
-    gridTemplateColumns: '32px 60px 1fr 1fr 1fr',
+    gridTemplateColumns: '32px 50px 1fr 1fr 1fr 1fr',
     gap: '12px',
     alignItems: 'center',
-    padding: '12px 0',
-    borderBottom: '1px solid rgba(255,255,255,0.06)',
+    padding: '14px 0',
+    borderBottom: '1px solid rgba(189, 147, 169, 0.12)',
   },
-  value: { color: '#3fb950', fontWeight: 600 },
-  empty: { color: '#8b949e', margin: 0, padding: '24px' },
+  value: { color: '#4a7c59', fontWeight: 600 },
+  priceUp: { fontSize: '0.85rem', color: '#4a7c59' },
+  priceDown: { fontSize: '0.85rem', color: '#c45c5c' },
+  profitSummary: { margin: '-8px 0 16px', fontSize: '0.95rem', color: '#6b6578' },
+  profitPositive: { color: '#4a7c59', fontWeight: 600 },
+  profitNegative: { color: '#c45c5c', fontWeight: 600 },
+  empty: { color: '#6b6578', margin: 0, padding: '28px', textAlign: 'center' },
 };
 
 export default App;
