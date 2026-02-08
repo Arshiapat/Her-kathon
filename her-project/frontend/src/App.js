@@ -761,15 +761,28 @@ function App() {
             </div>
             <div style={styles.inputGroup}>
               <label style={styles.label}>Amount ({coin?.symbol})</label>
-              <input
-                type="number"
-                step="0.0001"
-                min="0"
-                placeholder={mode === 'buy' ? '0.01' : formatCrypto(holding)}
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-                style={styles.input}
-              />
+              <div style={styles.amountInputRow}>
+                <input
+                  type="number"
+                  step="0.0001"
+                  min="0"
+                  placeholder={mode === 'buy' ? '0.01' : formatCrypto(holding)}
+                  value={amount}
+                  onChange={(e) => setAmount(e.target.value)}
+                  style={{ ...styles.input, flex: 1, minWidth: 0 }}
+                />
+                {amount.trim() !== '' && (() => {
+                  const val = parseFloat(amount);
+                  if (Number.isFinite(val) && val > 0 && price > 0) {
+                    return (
+                      <span style={styles.amountUsdPreview}>
+                        ≈ {formatUsd(val * price)}
+                      </span>
+                    );
+                  }
+                  return null;
+                })()}
+              </div>
             </div>
             {mode === 'sell' && selectedCoin === 'eth' && (
               <div style={styles.gasFeeRow}>
@@ -1088,6 +1101,16 @@ const styles = {
     marginBottom: '18px',
   },
   inputGroup: { marginBottom: '18px' },
+  amountInputRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 12,
+  },
+  amountUsdPreview: {
+    fontSize: '0.95rem',
+    color: '#6b6578',
+    whiteSpace: 'nowrap',
+  },
   gasFeeRow: {
     marginBottom: '18px',
   },
