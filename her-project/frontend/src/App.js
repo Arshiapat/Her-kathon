@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import CryptoChatbot from './CryptoChatbot';
 import History from './History';
 import SafetyChecklist from './SafetyChecklist';
+import fulllogo from './images/fulllogo.png';
 
 const COINS = [
   {
@@ -397,8 +398,10 @@ function IntroPage({ onComplete }) {
   return (
     <div style={introStyles.container}>
       <div style={introStyles.card}>
-        <h1 style={introStyles.title}>Crypto Simulator</h1>
-        <p style={introStyles.subtitle}>Practice trading with simulated money. No risk, just learning.</p>
+        <h1 style={{ margin: 0, textAlign: 'center' }}>
+          <img src={fulllogo} alt="Crypto Simulator" style={{ height: '5.00rem', width: 'auto', display: 'block', margin: '0 auto' }} />
+        </h1>
+        <p style={introStyles.subtitle}>Learn at your own pace with simulated USD and live prices on the blockchain, giving women the tools to build financial confidence and independence.</p>
         <form onSubmit={handleSubmit} style={introStyles.form}>
           <label style={introStyles.label}>How much would you like to invest?</label>
           <div style={introStyles.inputRow}>
@@ -695,7 +698,9 @@ function App() {
     <div style={styles.container}>
       <header style={styles.header}>
         <div style={styles.headerInner}>
-          <h1 style={styles.logo}>Crypto Simulator</h1>
+          <h1 style={{ margin: 0, textAlign: 'center' }}>
+            <img src={fulllogo} alt="Crypto Simulator" style={{ height: '5.55rem', width: 'auto', display: 'block', margin: '0 auto' }} />
+          </h1>
           <p style={styles.tagline}>Learn at your own pace with simulated USD and live prices on the blockchain, giving women the tools to build financial confidence and independence.</p>
           <div style={styles.statsRow}>
             <span style={styles.stat}>USD: {formatUsd(usdBalance)}</span>
