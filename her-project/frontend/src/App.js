@@ -253,8 +253,12 @@ function ProfitChart({ data, initialUsd }) {
   const pad = { top: 16, right: 16, bottom: 24, left: 56 };
   const minT = Math.min(...data.map((d) => d.t));
   const maxT = Math.max(...data.map((d) => d.t));
-  const minV = Math.min(initialUsd * 0.95, ...data.map((d) => d.v));
-  const maxV = Math.max(initialUsd * 1.05, ...data.map((d) => d.v));
+  const dataMinV = Math.min(...data.map((d) => d.v));
+  const dataMaxV = Math.max(...data.map((d) => d.v));
+  const dataRange = dataMaxV - dataMinV || initialUsd * 0.02;
+  const padding = Math.max(dataRange * 0.15, initialUsd * 0.005);
+  const minV = dataMinV - padding;
+  const maxV = dataMaxV + padding;
   const rangeT = maxT - minT || 1;
   const rangeV = maxV - minV || 1;
   const x = (t) => pad.left + ((t - minT) / rangeT) * (w - pad.left - pad.right);
@@ -541,7 +545,7 @@ function App() {
 
   useEffect(() => {
     if (!introComplete) return;
-    const id = setInterval(() => recordEquityPoint(totalEquity), 5000);
+    const id = setInterval(() => recordEquityPoint(totalEquity), 1000);
     return () => clearInterval(id);
   }, [introComplete, totalEquity, recordEquityPoint]);
 
