@@ -35,6 +35,19 @@ const COINS = [
   },
 ];
 
+const QUOTES = [
+  { author: 'Carrie Schwab‑Pomerantz', text: 'For women, financial independence isn\'t optional; it\'s a necessity for real security and choice.' },
+  { author: 'Linda Davis Taylor', text: 'Teach a girl how money works and she can reshape her future—and the world.' },
+  { author: 'Tiffany Welka', text: 'Invest with intent, not impulse; every decision should move you toward your real goals.' },
+  { author: 'Doris P. Meister', text: 'Take measured risk—courage plus discipline is how women build lasting wealth and confidence.' },
+  { author: 'Meltem Demirors', text: 'These numbers show a huge opportunity for women, if we build inclusive crypto communities together.' },
+  { author: 'Meltem Demirors', text: 'Being surrounded by brilliant women in bitcoin proves we belong in every part of this industry.' },
+  { author: 'Meltem Demirors', text: 'We need leaders in crypto who actively build a richer, more diverse community of stakeholders.' },
+  { author: 'Linda Davis Taylor', text: 'Wealth without knowledge is wasted; financial education turns money into real options and freedom.' },
+  { author: 'Carrie Schwab‑Pomerantz', text: 'Financial independence is essential for women; it protects you, your family, and your future.' },
+  { author: 'Tiffany Welka', text: 'Invest with intent: align every investment with your values, timeline, and personal vision.' },
+];
+
 const DEFAULT_INITIAL_USD = 10000;
 const STORAGE_KEYS = {
   balance: 'crypto_sim_usd',
@@ -42,6 +55,7 @@ const STORAGE_KEYS = {
   prices: 'crypto_sim_prices',
   costBasis: 'crypto_sim_cost_basis',
   equityHistory: 'crypto_sim_equity_history',
+  priceHistory: 'crypto_sim_price_history',
   introComplete: 'crypto_sim_intro_complete',
   initialUsd: 'crypto_sim_initial_usd',
 };
@@ -167,6 +181,22 @@ function saveEquityHistory(h) {
   } catch (_) {}
 }
 
+function loadPriceHistory() {
+  try {
+    const v = localStorage.getItem(STORAGE_KEYS.priceHistory);
+    if (!v) return [];
+    return JSON.parse(v);
+  } catch {
+    return [];
+  }
+}
+function savePriceHistory(h) {
+  try {
+    const trimmed = h.slice(-MAX_HISTORY_POINTS);
+    localStorage.setItem(STORAGE_KEYS.priceHistory, JSON.stringify(trimmed));
+  } catch (_) {}
+}
+
 function formatUsd(n) {
   if (n >= 1e6) return `$${(n / 1e6).toFixed(2)}M`;
   if (n >= 1e3) return `$${n.toFixed(2)}`;
@@ -206,6 +236,82 @@ function ProfitChart({ data, initialUsd }) {
 const chartStyles = {
   wrapper: { background: 'rgba(255,255,255,0.85)', border: '1px solid rgba(189,147,169,0.25)', borderRadius: 18, padding: 20, overflow: 'hidden' },
   svg: { width: '100%', height: 220, display: 'block' },
+};
+
+const QUOTE_SLOT_HEIGHT = 110;
+
+function RotatingQuote() {
+  const [quoteIndex, setQuoteIndex] = useState(() => Math.floor(Math.random() * QUOTES.length));
+
+  useEffect(() => {
+    const id = setInterval(() => {
+      setQuoteIndex((prev) => {
+        let next = Math.floor(Math.random() * QUOTES.length);
+        while (next === prev && QUOTES.length > 1) next = Math.floor(Math.random() * QUOTES.length);
+        return next;
+      });
+    }, 10000);
+    return () => clearInterval(id);
+  }, []);
+
+  return (
+    <div style={quoteStyles.viewport}>
+      <div
+        style={{
+          ...quoteStyles.reel,
+          transform: `translateY(-${quoteIndex * QUOTE_SLOT_HEIGHT}px)`,
+          transition: 'transform 0.7s cubic-bezier(0.25, 0.1, 0.25, 1)',
+        }}
+      >
+        {QUOTES.map((q, i) => (
+          <div key={i} style={quoteStyles.slot}>
+            <p style={quoteStyles.quote}>
+              <span>"{q.text}"</span>
+              <cite style={quoteStyles.author}>— {q.author}</cite>
+            </p>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+const quoteStyles = {
+  viewport: {
+    height: QUOTE_SLOT_HEIGHT,
+    overflow: 'hidden',
+    marginBottom: 20,
+  },
+  reel: {
+    display: 'flex',
+    flexDirection: 'column',
+  },
+  slot: {
+    height: QUOTE_SLOT_HEIGHT,
+    display: 'flex',
+    flexDirection: 'column',
+    justifyContent: 'center',
+    flexShrink: 0,
+  },
+  quote: {
+    margin: 0,
+    fontSize: '1rem',
+    color: '#4a4458',
+    lineHeight: 1.45,
+    fontStyle: 'italic',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    display: '-webkit-box',
+    WebkitLineClamp: 2,
+    WebkitBoxOrient: 'vertical',
+  },
+  author: {
+    display: 'inline',
+    marginLeft: 6,
+    fontSize: '0.95rem',
+    color: '#6b6578',
+    fontStyle: 'normal',
+  },
 };
 
 function IntroPage({ onComplete }) {
@@ -341,8 +447,11 @@ function App() {
   const [mode, setMode] = useState('buy'); // 'buy' | 'sell'
   const [message, setMessage] = useState(null);
   const [hoveredCoin, setHoveredCoin] = useState(null);
+  const [startFreshHover, setStartFreshHover] = useState(false);
   const [costBasis, setCostBasis] = useState(loadCostBasis);
   const [equityHistory, setEquityHistory] = useState(loadEquityHistory);
+  const [priceHistory, setPriceHistory] = useState(loadPriceHistory);
+  const [activeView, setActiveView] = useState('main');
 
   const portfolioValue = COINS.reduce((sum, c) => sum + (holdings[c.id] || 0) * (prices[c.id] || 0), 0);
   const totalEquity = usdBalance + portfolioValue;
@@ -389,7 +498,7 @@ function App() {
 
   useEffect(() => {
     if (!introComplete) return;
-    const id = setInterval(() => recordEquityPoint(totalEquity), 30000);
+    const id = setInterval(() => recordEquityPoint(totalEquity), 5000);
     return () => clearInterval(id);
   }, [introComplete, totalEquity, recordEquityPoint]);
 
@@ -485,7 +594,13 @@ function App() {
             <span style={styles.stat}>Portfolio: {formatUsd(portfolioValue)}</span>
             <span style={styles.statStrong}>Total: {formatUsd(totalEquity)}</span>
           </div>
-          <button type="button" style={styles.startFreshBtn} onClick={clearAllUserData}>
+          <button
+            type="button"
+            style={{ ...styles.startFreshBtn, ...(startFreshHover ? styles.startFreshBtnHover : {}) }}
+            onClick={clearAllUserData}
+            onMouseEnter={() => setStartFreshHover(true)}
+            onMouseLeave={() => setStartFreshHover(false)}
+          >
             Start fresh
           </button>
         </div>
@@ -498,6 +613,7 @@ function App() {
       )}
 
       <main style={styles.main}>
+        <RotatingQuote />
         <section style={styles.section}>
           <h2 style={styles.sectionTitle}>Trade</h2>
           <div style={styles.tradeCard}>
@@ -697,6 +813,12 @@ const styles = {
     borderRadius: 8,
     color: '#8b4a6b',
     cursor: 'pointer',
+    transition: 'all 0.2s ease',
+  },
+  startFreshBtnHover: {
+    background: 'linear-gradient(135deg, #b56b9e 0%, #9a5a8a 100%)',
+    borderColor: '#9a5a8a',
+    color: '#fff',
   },
   message: {
     background: 'rgba(139, 165, 136, 0.2)',
