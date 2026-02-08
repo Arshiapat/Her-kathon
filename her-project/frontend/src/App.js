@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import CryptoChatbot from './CryptoChatbot';
 import History from './History';
+import SafetyChecklist from './SafetyChecklist';
 
 const COINS = [
   {
@@ -471,6 +472,7 @@ function App() {
   const [hoveredCoin, setHoveredCoin] = useState(null);
   const [startFreshHover, setStartFreshHover] = useState(false);
   const [historyHover, setHistoryHover] = useState(false);
+  const [safetyHover, setSafetyHover] = useState(false);
   const [costBasis, setCostBasis] = useState(loadCostBasis);
   const [equityHistory, setEquityHistory] = useState(loadEquityHistory);
   const [priceHistory, setPriceHistory] = useState(loadPriceHistory);
@@ -633,6 +635,10 @@ function App() {
     );
   }
 
+  if (activeView === 'safety') {
+    return <SafetyChecklist onBack={() => setActiveView('main')} />;
+  }
+
   return (
     <div style={styles.container}>
       <header style={styles.header}>
@@ -653,6 +659,15 @@ function App() {
               onMouseLeave={() => setHistoryHover(false)}
             >
               History
+            </button>
+            <button
+              type="button"
+              style={{ ...styles.historyBtn, ...(safetyHover ? styles.headerBtnHover : {}) }}
+              onClick={() => setActiveView('safety')}
+              onMouseEnter={() => setSafetyHover(true)}
+              onMouseLeave={() => setSafetyHover(false)}
+            >
+              Safety
             </button>
             <button
               type="button"
