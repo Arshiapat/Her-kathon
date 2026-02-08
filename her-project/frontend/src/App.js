@@ -371,6 +371,64 @@ const quoteStyles = {
   },
 };
 
+function FeeTooltip({ children, text }) {
+  const [showBlurb, setShowBlurb] = useState(false);
+  const tooltipText = text || 'Gas fees (or transaction fees) are small payments required to process transactions on blockchain networks. They compensate network validators for securing and processing your transaction. They also help prevent spam and excessive trading by making it costly to flood the network with too many transactions. Fees vary based on network congestion and transaction priority.';
+
+  return (
+    <span style={{ position: 'relative', display: 'inline-block' }}>
+      <span
+        role="button"
+        tabIndex={0}
+        onClick={() => setShowBlurb((prev) => !prev)}
+        onKeyDown={(e) => e.key === 'Enter' && setShowBlurb((prev) => !prev)}
+        style={{ cursor: 'pointer', textDecoration: 'underline', textDecorationStyle: 'dotted', textUnderlineOffset: '2px' }}
+      >
+        {children}
+      </span>
+      {showBlurb && (
+        <div style={feeTooltipStyles.blurb}>
+          <div style={feeTooltipStyles.arrow}></div>
+          <p style={feeTooltipStyles.text}>{tooltipText}</p>
+        </div>
+      )}
+    </span>
+  );
+}
+
+const feeTooltipStyles = {
+  blurb: {
+    position: 'absolute',
+    top: '100%',
+    left: 0,
+    marginTop: '6px',
+    padding: '12px 16px',
+    background: 'rgba(45, 40, 58, 0.95)',
+    color: '#fff',
+    borderRadius: '8px',
+    fontSize: '0.85rem',
+    lineHeight: 1.5,
+    maxWidth: '280px',
+    minWidth: '200px',
+    zIndex: 1000,
+    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.2)',
+  },
+  arrow: {
+    position: 'absolute',
+    bottom: '100%',
+    left: '16px',
+    width: 0,
+    height: 0,
+    borderLeft: '6px solid transparent',
+    borderRight: '6px solid transparent',
+    borderBottom: '6px solid rgba(45, 40, 58, 0.95)',
+  },
+  text: {
+    margin: 0,
+    whiteSpace: 'normal',
+  },
+};
+
 function IntroPage({ onComplete }) {
   const [amount, setAmount] = useState('');
   const [error, setError] = useState(null);
@@ -807,7 +865,9 @@ function App() {
             </div>
             {mode === 'sell' && selectedCoin === 'eth' && (
               <div style={styles.gasFeeRow}>
-                <label style={styles.label}>Gas fee</label>
+                <label style={styles.label}>
+                  <FeeTooltip>Gas fee</FeeTooltip>
+                </label>
                 <div style={styles.gasSliderRow}>
                   <input
                     type="range"
@@ -834,7 +894,9 @@ function App() {
             )}
             {mode === 'sell' && selectedCoin === 'btc' && (
               <div style={styles.gasFeeRow}>
-                <label style={styles.label}>Transaction fee</label>
+                <label style={styles.label}>
+                  Transaction <FeeTooltip>fee</FeeTooltip>
+                </label>
                 <div style={styles.gasSliderRow}>
                   <input
                     type="range"
@@ -861,12 +923,12 @@ function App() {
             )}
             {mode === 'sell' && selectedCoin === 'sol' && (
               <p style={styles.feeBlurb}>
-                Transaction fee: {formatCrypto(SOL_FEE_SOL)} SOL ({formatUsd(SOL_FEE_SOL * (prices.sol || 0))}) will be deducted from your sale.
+                Transaction <FeeTooltip>fee</FeeTooltip>: {formatCrypto(SOL_FEE_SOL)} SOL ({formatUsd(SOL_FEE_SOL * (prices.sol || 0))}) will be deducted from your sale.
               </p>
             )}
             {mode === 'sell' && selectedCoin === 'doge' && (
               <p style={styles.feeBlurb}>
-                Transaction fee: {formatCrypto(DOGE_FEE_DOGE)} DOGE ({formatUsd(DOGE_FEE_DOGE * (prices.doge || 0))}) will be deducted from your sale.
+                Transaction <FeeTooltip>fee</FeeTooltip>: {formatCrypto(DOGE_FEE_DOGE)} DOGE ({formatUsd(DOGE_FEE_DOGE * (prices.doge || 0))}) will be deducted from your sale.
               </p>
             )}
             <button style={styles.tradeButton} onClick={handleTrade}>
