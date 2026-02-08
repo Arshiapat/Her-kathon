@@ -870,6 +870,47 @@ function App() {
           </div>
         </section>
 
+        <section style={styles.section}>
+          <h2 style={styles.sectionTitle}>Portfolio</h2>
+          <div style={styles.portfolioTable}>
+            {COINS.filter((c) => (holdings[c.id] || 0) > 0).length === 0 ? (
+              <p style={styles.empty}>No holdings yet. Make your first trade above to get started.</p>
+            ) : (
+              <>
+                <div style={styles.portfolioHeader}>
+                  <span></span><span>Coin</span><span>Qty</span><span>Price</span><span>Value</span><span>Buy price · Change</span>
+                </div>
+                {COINS.filter((c) => (holdings[c.id] || 0) > 0).map((c) => {
+                const qty = holdings[c.id] || 0;
+                const currentPrice = prices[c.id] || 0;
+                const value = qty * currentPrice;
+                const cb = costBasis[c.id];
+                const totalCost = (cb && typeof cb.totalCost === 'number') ? cb.totalCost : 0;
+                const totalQty = (cb && typeof cb.totalQty === 'number') ? cb.totalQty : 0;
+                const avgCost = totalQty > 0 ? totalCost / totalQty : 0;
+                const priceDiff = avgCost > 0 ? ((currentPrice - avgCost) / avgCost) * 100 : 0;
+                return (
+                  <div key={c.id} style={styles.portfolioRow}>
+                    <span style={styles.coinEmoji}>{c.emoji}</span>
+                    <span>{c.symbol}</span>
+                    <span>{formatCrypto(qty)}</span>
+                    <span>{formatUsd(currentPrice)}</span>
+                    <span style={styles.value}>{formatUsd(value)}</span>
+                    <span style={priceDiff >= 0 ? styles.priceUp : styles.priceDown}>
+                      {avgCost > 0 ? (
+                        <>Buy: {formatUsd(avgCost)} · {priceDiff >= 0 ? '+' : ''}{priceDiff.toFixed(1)}%</>
+                      ) : (
+                        '—'
+                      )}
+                    </span>
+                  </div>
+                );
+              })}
+              </>
+            )}
+          </div>
+        </section>
+
         {chartData.length >= 2 && (
           <section style={styles.section}>
             <h2 style={styles.sectionTitle}>Portfolio Value Over Time</h2>
@@ -913,47 +954,6 @@ function App() {
                 )}
               </div>
             ))}
-          </div>
-        </section>
-
-        <section style={styles.section}>
-          <h2 style={styles.sectionTitle}>Portfolio</h2>
-          <div style={styles.portfolioTable}>
-            {COINS.filter((c) => (holdings[c.id] || 0) > 0).length === 0 ? (
-              <p style={styles.empty}>No holdings yet. Make your first trade above to get started.</p>
-            ) : (
-              <>
-                <div style={styles.portfolioHeader}>
-                  <span></span><span>Coin</span><span>Qty</span><span>Price</span><span>Value</span><span>Buy price · Change</span>
-                </div>
-                {COINS.filter((c) => (holdings[c.id] || 0) > 0).map((c) => {
-                const qty = holdings[c.id] || 0;
-                const currentPrice = prices[c.id] || 0;
-                const value = qty * currentPrice;
-                const cb = costBasis[c.id];
-                const totalCost = (cb && typeof cb.totalCost === 'number') ? cb.totalCost : 0;
-                const totalQty = (cb && typeof cb.totalQty === 'number') ? cb.totalQty : 0;
-                const avgCost = totalQty > 0 ? totalCost / totalQty : 0;
-                const priceDiff = avgCost > 0 ? ((currentPrice - avgCost) / avgCost) * 100 : 0;
-                return (
-                  <div key={c.id} style={styles.portfolioRow}>
-                    <span style={styles.coinEmoji}>{c.emoji}</span>
-                    <span>{c.symbol}</span>
-                    <span>{formatCrypto(qty)}</span>
-                    <span>{formatUsd(currentPrice)}</span>
-                    <span style={styles.value}>{formatUsd(value)}</span>
-                    <span style={priceDiff >= 0 ? styles.priceUp : styles.priceDown}>
-                      {avgCost > 0 ? (
-                        <>Buy: {formatUsd(avgCost)} · {priceDiff >= 0 ? '+' : ''}{priceDiff.toFixed(1)}%</>
-                      ) : (
-                        '—'
-                      )}
-                    </span>
-                  </div>
-                );
-              })}
-              </>
-            )}
           </div>
         </section>
       </main>
