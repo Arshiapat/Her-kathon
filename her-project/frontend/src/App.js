@@ -96,8 +96,27 @@ function clearAllUserData() {
   } catch (_) {}
 }
 
-// Simulated base prices (USD) – will drift randomly
+// Fallback prices (USD) – used when market API is unavailable
 const BASE_PRICES = { btc: 43200, eth: 2280, sol: 98, doge: 0.082 };
+
+const COINGECKO_IDS = { btc: 'bitcoin', eth: 'ethereum', sol: 'solana', doge: 'dogecoin' };
+
+async function fetchLivePrices() {
+  try {
+    const ids = Object.values(COINGECKO_IDS).join(',');
+    const res = await fetch(`https://api.coingecko.com/api/v3/simple/price?ids=${ids}&vs_currencies=usd`);
+    if (!res.ok) return null;
+    const data = await res.json();
+    const next = {};
+    for (const [key, id] of Object.entries(COINGECKO_IDS)) {
+      const usd = data[id]?.usd;
+      if (typeof usd === 'number' && usd > 0) next[key] = usd;
+    }
+    return Object.keys(next).length === 4 ? next : null;
+  } catch {
+    return null;
+  }
+}
 
 // Gas fee in ETH – converted to USD using current ETH price when selling
 const GAS_FEE_ETH = { low: 0.001, medium: 0.003, high: 0.008 };
@@ -115,11 +134,6 @@ const SOL_FEE_SOL = 0.000005;
 
 // Dogecoin transaction fee – average on-chain fees ~$0.0014–$0.08; fixed 0.05 DOGE
 const DOGE_FEE_DOGE = 0.05;
-
-function randomWalk(prev, volatility = 0.002) {
-  const change = (Math.random() - 0.5) * 2 * volatility * prev;
-  return Math.max(prev * 0.5, prev + change);
-}
 
 function loadNumber(key, fallback) {
   try {
@@ -511,21 +525,20 @@ function App() {
     });
   }, []);
 
-  const tickPrices = useCallback(() => {
-    setPrices((prev) => {
-      const next = {
-        btc: randomWalk(prev.btc),
-        eth: randomWalk(prev.eth),
-        sol: randomWalk(prev.sol),
-        doge: randomWalk(prev.doge),
-      };
-      savePrices(next);
-      return next;
-    });
+  const tickPrices = useCallback(async () => {
+    const next = await fetchLivePrices();
+    if (next) {
+      setPrices((prev) => {
+        const merged = { ...prev, ...next };
+        savePrices(merged);
+        return merged;
+      });
+    }
   }, []);
 
   useEffect(() => {
     if (!introComplete) return;
+    tickPrices();
     const id = setInterval(tickPrices, 3000);
     return () => clearInterval(id);
   }, [introComplete, tickPrices]);
@@ -683,7 +696,7 @@ function App() {
       <header style={styles.header}>
         <div style={styles.headerInner}>
           <h1 style={styles.logo}>Crypto Simulator</h1>
-          <p style={styles.tagline}>Learn at your own pace — practice trading with simulated USD and live-updating prices. No pressure, just progress.</p>
+          <p style={styles.tagline}>Learn at your own pace with simulated USD and live prices on the blockchain, giving women the tools to build financial confidence and independence.</p>
           <div style={styles.statsRow}>
             <span style={styles.stat}>USD: {formatUsd(usdBalance)}</span>
             <span style={styles.stat}>Portfolio: {formatUsd(portfolioValue)}</span>
@@ -721,14 +734,13 @@ function App() {
         </div>
       </header>
 
-      {message && (
-        <div style={styles.message} role="alert">
-          {message}
-        </div>
-      )}
-
       <main style={styles.main}>
         <RotatingQuote />
+        {message && (
+          <div style={styles.message} role="alert">
+            {message}
+          </div>
+        )}
         <section style={styles.section}>
           <h2 style={styles.sectionTitle}>Trade</h2>
           <div style={styles.tradeCard}>

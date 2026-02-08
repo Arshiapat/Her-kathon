@@ -8,8 +8,18 @@ const SAFETY_ITEMS = [
   'If something feels off, slow down and verify through official channels before acting.',
 ];
 
+const FLASH_CARDS = [
+  { q: 'What should you never share with anyone?', a: 'Your seed phrase or private keys. No legitimate service will ever ask for them.' },
+  { q: 'How can you spot a phishing site?', a: 'By checking URLs and contract addresses carefully — fake sites often look almost identical to real ones.' },
+  { q: "What's a red flag for a crypto scam?", a: 'Promises that seem "too good to be true" or unsolicited DMs offering deals or help.' },
+  { q: 'Where should you store larger amounts of crypto?', a: 'Use a hardware wallet or trusted software wallet. Avoid leaving large sums on exchanges long-term.' },
+  { q: 'What should you do if something feels off?', a: 'Slow down and verify through official channels before taking any action.' },
+];
+
 function SafetyChecklist({ onBack }) {
   const [backHover, setBackHover] = useState(false);
+  const [cardIndex, setCardIndex] = useState(0);
+  const [flipped, setFlipped] = useState(false);
 
   const styles = {
     container: {
@@ -80,6 +90,106 @@ function SafetyChecklist({ onBack }) {
     listItemLast: {
       marginBottom: 0,
     },
+    flashcardsTitle: {
+      margin: '36px 0 16px',
+      fontSize: '1.15rem',
+      fontWeight: 600,
+      color: '#4a4458',
+    },
+    cardWrapper: {
+      perspective: 1000,
+      display: 'flex',
+      justifyContent: 'center',
+    },
+    card: {
+      position: 'relative',
+      width: '100%',
+      maxWidth: 480,
+      minHeight: 140,
+      cursor: 'pointer',
+      transformStyle: 'preserve-3d',
+      transform: flipped ? 'scale(1)' : 'scale(0.88)',
+      transformOrigin: 'center center',
+      transition: 'transform 0.4s ease',
+    },
+    cardInner: {
+      position: 'relative',
+      width: '100%',
+      minHeight: 140,
+      transition: 'transform 0.5s ease',
+      transform: flipped ? 'rotateY(180deg)' : 'rotateY(0deg)',
+      transformStyle: 'preserve-3d',
+    },
+    cardFace: {
+      position: 'absolute',
+      width: '100%',
+      minHeight: 140,
+      backfaceVisibility: 'hidden',
+      WebkitBackfaceVisibility: 'hidden',
+      background: 'rgba(255, 255, 255, 0.9)',
+      border: '1px solid rgba(189, 147, 169, 0.3)',
+      borderRadius: 16,
+      boxShadow: '0 4px 20px rgba(181, 107, 158, 0.1)',
+      padding: 24,
+      display: 'flex',
+      flexDirection: 'column',
+      justifyContent: 'center',
+      boxSizing: 'border-box',
+    },
+    cardBack: {
+      transform: 'rotateY(180deg)',
+    },
+    cardQuestion: {
+      fontSize: '1rem',
+      fontWeight: 600,
+      color: '#6b6578',
+      marginBottom: 8,
+    },
+    cardLabel: {
+      fontSize: '0.8rem',
+      color: '#b56b9e',
+      textTransform: 'uppercase',
+      letterSpacing: '0.5px',
+      marginBottom: 6,
+    },
+    cardAnswer: {
+      fontSize: '0.95rem',
+      color: '#4a4458',
+      lineHeight: 1.5,
+    },
+    cardNav: {
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginTop: 16,
+      gap: 12,
+    },
+    cardBtn: {
+      padding: '10px 20px',
+      fontSize: '0.9rem',
+      background: 'rgba(181, 107, 158, 0.15)',
+      border: '1px solid rgba(181, 107, 158, 0.35)',
+      borderRadius: 10,
+      color: '#8b4a6b',
+      cursor: 'pointer',
+      transition: 'all 0.2s ease',
+    },
+    cardCounter: {
+      fontSize: '0.9rem',
+      color: '#6b6578',
+    },
+  };
+
+  const card = FLASH_CARDS[cardIndex];
+
+  const goPrev = () => {
+    setFlipped(false);
+    setCardIndex((i) => (i === 0 ? FLASH_CARDS.length - 1 : i - 1));
+  };
+
+  const goNext = () => {
+    setFlipped(false);
+    setCardIndex((i) => (i === FLASH_CARDS.length - 1 ? 0 : i + 1));
   };
 
   return (
@@ -115,6 +225,39 @@ function SafetyChecklist({ onBack }) {
             </li>
           ))}
         </ul>
+
+        <h3 style={styles.flashcardsTitle}>Flash cards</h3>
+        <p style={{ ...styles.intro, marginBottom: 12 }}>Tap a card to flip it. Test your knowledge.</p>
+        <div style={styles.cardWrapper}>
+          <div
+            style={styles.card}
+            onClick={() => setFlipped((f) => !f)}
+            role="button"
+            tabIndex={0}
+            onKeyDown={(e) => e.key === 'Enter' && setFlipped((f) => !f)}
+          >
+            <div style={styles.cardInner}>
+              <div style={styles.cardFace}>
+                <span style={styles.cardLabel}>Question</span>
+                <p style={styles.cardQuestion}>{card.q}</p>
+                <p style={{ ...styles.cardAnswer, opacity: 0.7, fontSize: '0.85rem' }}>Tap to reveal answer</p>
+              </div>
+              <div style={{ ...styles.cardFace, ...styles.cardBack }}>
+                <span style={styles.cardLabel}>Answer</span>
+                <p style={styles.cardAnswer}>{card.a}</p>
+              </div>
+            </div>
+          </div>
+          <div style={styles.cardNav}>
+            <button type="button" style={styles.cardBtn} onClick={(e) => { e.stopPropagation(); goPrev(); }}>
+              ← Previous
+            </button>
+            <span style={styles.cardCounter}>{cardIndex + 1} / {FLASH_CARDS.length}</span>
+            <button type="button" style={styles.cardBtn} onClick={(e) => { e.stopPropagation(); goNext(); }}>
+              Next →
+            </button>
+          </div>
+        </div>
       </main>
     </div>
   );
