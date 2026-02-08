@@ -600,15 +600,26 @@ function App() {
             <span style={styles.stat}>Portfolio: {formatUsd(portfolioValue)}</span>
             <span style={styles.statStrong}>Total: {formatUsd(totalEquity)}</span>
           </div>
-          <button
-            type="button"
-            style={{ ...styles.startFreshBtn, ...(startFreshHover ? styles.startFreshBtnHover : {}) }}
-            onClick={clearAllUserData}
-            onMouseEnter={() => setStartFreshHover(true)}
-            onMouseLeave={() => setStartFreshHover(false)}
-          >
-            Start fresh
-          </button>
+          <div style={styles.headerButtons}>
+            <button
+              type="button"
+              style={{ ...styles.historyBtn, ...(historyHover ? styles.headerBtnHover : {}) }}
+              onClick={() => setActiveView('history')}
+              onMouseEnter={() => setHistoryHover(true)}
+              onMouseLeave={() => setHistoryHover(false)}
+            >
+              History
+            </button>
+            <button
+              type="button"
+              style={{ ...styles.startFreshBtn, ...(startFreshHover ? styles.headerBtnHover : {}) }}
+              onClick={clearAllUserData}
+              onMouseEnter={() => setStartFreshHover(true)}
+              onMouseLeave={() => setStartFreshHover(false)}
+            >
+              Start fresh
+            </button>
+          </div>
         </div>
       </header>
 
@@ -811,8 +822,12 @@ const styles = {
     fontWeight: 600,
     color: '#b56b9e',
   },
-  startFreshBtn: {
+  headerButtons: {
     marginTop: 16,
+    display: 'flex',
+    gap: 12,
+  },
+  historyBtn: {
     padding: '8px 16px',
     fontSize: '0.85rem',
     background: 'transparent',
@@ -822,7 +837,17 @@ const styles = {
     cursor: 'pointer',
     transition: 'all 0.2s ease',
   },
-  startFreshBtnHover: {
+  startFreshBtn: {
+    padding: '8px 16px',
+    fontSize: '0.85rem',
+    background: 'transparent',
+    border: '1px solid rgba(181, 107, 158, 0.4)',
+    borderRadius: 8,
+    color: '#8b4a6b',
+    cursor: 'pointer',
+    transition: 'all 0.2s ease',
+  },
+  headerBtnHover: {
     background: 'linear-gradient(135deg, #b56b9e 0%, #9a5a8a 100%)',
     borderColor: '#9a5a8a',
     color: '#fff',
