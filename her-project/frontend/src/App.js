@@ -369,11 +369,13 @@ function App() {
   }, []);
 
   useEffect(() => {
+    if (!introComplete) return;
     const id = setInterval(tickPrices, 3000);
     return () => clearInterval(id);
-  }, [tickPrices]);
+  }, [introComplete, tickPrices]);
 
   useEffect(() => {
+    if (!introComplete) return;
     if (equityHistory.length === 0) {
       const now = Date.now();
       const seed = [
@@ -383,22 +385,26 @@ function App() {
       setEquityHistory(seed);
       saveEquityHistory(seed);
     }
-  }, []);
+  }, [introComplete]);
 
   useEffect(() => {
+    if (!introComplete) return;
     const id = setInterval(() => recordEquityPoint(totalEquity), 30000);
     return () => clearInterval(id);
-  }, [totalEquity, recordEquityPoint]);
+  }, [introComplete, totalEquity, recordEquityPoint]);
 
   useEffect(() => {
+    if (!introComplete) return;
     saveBalance(usdBalance);
-  }, [usdBalance]);
+  }, [introComplete, usdBalance]);
   useEffect(() => {
+    if (!introComplete) return;
     saveHoldings(holdings);
-  }, [holdings]);
+  }, [introComplete, holdings]);
   useEffect(() => {
+    if (!introComplete) return;
     saveCostBasis(costBasis);
-  }, [costBasis]);
+  }, [introComplete, costBasis]);
 
   const handleTrade = () => {
     const val = parseFloat(amount);
