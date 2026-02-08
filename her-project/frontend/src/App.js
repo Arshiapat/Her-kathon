@@ -449,6 +449,7 @@ function App() {
   const [message, setMessage] = useState(null);
   const [hoveredCoin, setHoveredCoin] = useState(null);
   const [startFreshHover, setStartFreshHover] = useState(false);
+  const [historyHover, setHistoryHover] = useState(false);
   const [costBasis, setCostBasis] = useState(loadCostBasis);
   const [equityHistory, setEquityHistory] = useState(loadEquityHistory);
   const [priceHistory, setPriceHistory] = useState(loadPriceHistory);
@@ -826,6 +827,7 @@ const styles = {
     marginTop: 16,
     display: 'flex',
     gap: 12,
+    justifyContent: 'center',
   },
   historyBtn: {
     padding: '8px 16px',
