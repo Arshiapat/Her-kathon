@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import CryptoChatbot from './CryptoChatbot';
 
 const COINS = [
   {
@@ -471,7 +472,12 @@ function App() {
   const chartData = equityHistory.length >= 2 ? equityHistory : [];
 
   if (!introComplete) {
-    return <IntroPage onComplete={() => { setUsdBalance(loadNumber(STORAGE_KEYS.balance, DEFAULT_INITIAL_USD)); setIntroComplete(true); }} />;
+    return (
+      <>
+        <IntroPage onComplete={() => { setUsdBalance(loadNumber(STORAGE_KEYS.balance, DEFAULT_INITIAL_USD)); setIntroComplete(true); }} />
+        <CryptoChatbot />
+      </>
+    );
   }
 
   return (
@@ -637,6 +643,7 @@ function App() {
           </div>
         </section>
       </main>
+      <CryptoChatbot />
     </div>
   );
 }
