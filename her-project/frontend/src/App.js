@@ -295,7 +295,7 @@ const chartStyles = {
   svg: { width: '100%', height: 220, display: 'block' },
 };
 
-const QUOTE_SLOT_HEIGHT = 110;
+const QUOTE_SLOT_HEIGHT = 72;
 
 function RotatingQuote() {
   const [quoteIndex, setQuoteIndex] = useState(() => Math.floor(Math.random() * QUOTES.length));
@@ -337,7 +337,7 @@ const quoteStyles = {
   viewport: {
     height: QUOTE_SLOT_HEIGHT,
     overflow: 'hidden',
-    marginBottom: 20,
+    marginBottom: 8,
   },
   reel: {
     display: 'flex',
@@ -354,7 +354,7 @@ const quoteStyles = {
     margin: 0,
     fontSize: '1rem',
     color: '#4a4458',
-    lineHeight: 1.45,
+    lineHeight: 1.35,
     fontStyle: 'italic',
     overflow: 'hidden',
     textOverflow: 'ellipsis',
