@@ -98,7 +98,22 @@ function clearAllUserData() {
 // Simulated base prices (USD) – will drift randomly
 const BASE_PRICES = { btc: 43200, eth: 2280, sol: 98, doge: 0.082 };
 
-const GAS_FEE = 0.003; // Fixed fee (USD) deducted from sell transactions
+// Gas fee in ETH – converted to USD using current ETH price when selling
+const GAS_FEE_ETH = { low: 0.001, medium: 0.003, high: 0.008 };
+
+// Bitcoin transaction fee: size (bytes) × fee rate (sat/byte) → satoshis. 1 BTC = 100,000,000 satoshis.
+const BTC_TX_SIZE_BYTES = 250;
+const BTC_FEE_RATE_SAT_PER_BYTE = { low: 15, medium: 50, high: 150 };
+function btcFeeBtc(tier) {
+  const rate = BTC_FEE_RATE_SAT_PER_BYTE[tier] ?? BTC_FEE_RATE_SAT_PER_BYTE.medium;
+  return (BTC_TX_SIZE_BYTES * rate) / 100_000_000;
+}
+
+// Solana transaction fee – fixed ~0.000005 SOL per transaction
+const SOL_FEE_SOL = 0.000005;
+
+// Dogecoin transaction fee – average on-chain fees ~$0.0014–$0.08; fixed 0.05 DOGE
+const DOGE_FEE_DOGE = 0.05;
 
 function randomWalk(prev, volatility = 0.002) {
   const change = (Math.random() - 0.5) * 2 * volatility * prev;
@@ -467,6 +482,8 @@ function App() {
   const [selectedCoin, setSelectedCoin] = useState('btc');
   const [amount, setAmount] = useState('');
   const [mode, setMode] = useState('buy'); // 'buy' | 'sell'
+  const [gasTier, setGasTier] = useState('medium'); // 'low' | 'medium' | 'high'
+  const [btcFeeTier, setBtcFeeTier] = useState('medium'); // 'low' | 'medium' | 'high'
   const [message, setMessage] = useState(null);
   const [hoveredCoin, setHoveredCoin] = useState(null);
   const [startFreshHover, setStartFreshHover] = useState(false);
@@ -577,7 +594,17 @@ function App() {
         return;
       }
       const proceeds = val * price;
-      const netProceeds = proceeds - GAS_FEE;
+      let feeUsd = 0;
+      if (selectedCoin === 'eth') {
+        feeUsd = (GAS_FEE_ETH[gasTier] ?? GAS_FEE_ETH.medium) * (prices.eth || 0);
+      } else if (selectedCoin === 'btc') {
+        feeUsd = btcFeeBtc(btcFeeTier) * (prices.btc || 0);
+      } else if (selectedCoin === 'sol') {
+        feeUsd = SOL_FEE_SOL * (prices.sol || 0);
+      } else if (selectedCoin === 'doge') {
+        feeUsd = DOGE_FEE_DOGE * (prices.doge || 0);
+      }
+      const netProceeds = proceeds - feeUsd;
       setUsdBalance((b) => b + netProceeds);
       setHoldings((h) => ({ ...h, [selectedCoin]: (h[selectedCoin] || 0) - val }));
       setCostBasis((cb) => {
@@ -599,7 +626,15 @@ function App() {
         saveTransactionHistory(next);
         return next;
       });
-      setMessage(`Sold ${formatCrypto(val)} ${coin.symbol} for ${formatUsd(netProceeds)} (gas: ${formatUsd(GAS_FEE)})`);
+      setMessage(selectedCoin === 'eth'
+        ? `Sold ${formatCrypto(val)} ${coin.symbol} for ${formatUsd(netProceeds)} (gas: ${formatCrypto(GAS_FEE_ETH[gasTier] ?? GAS_FEE_ETH.medium)} ETH / ${formatUsd(feeUsd)})`
+        : selectedCoin === 'btc'
+          ? `Sold ${formatCrypto(val)} ${coin.symbol} for ${formatUsd(netProceeds)} (tx fee: ${formatCrypto(btcFeeBtc(btcFeeTier))} BTC / ${formatUsd(feeUsd)})`
+          : selectedCoin === 'sol'
+            ? `Sold ${formatCrypto(val)} ${coin.symbol} for ${formatUsd(netProceeds)} (tx fee: ${formatCrypto(SOL_FEE_SOL)} SOL / ${formatUsd(feeUsd)})`
+            : selectedCoin === 'doge'
+              ? `Sold ${formatCrypto(val)} ${coin.symbol} for ${formatUsd(netProceeds)} (tx fee: ${formatCrypto(DOGE_FEE_DOGE)} DOGE / ${formatUsd(feeUsd)})`
+              : `Sold ${formatCrypto(val)} ${coin.symbol} for ${formatUsd(netProceeds)}`);
     }
     setAmount('');
     setTimeout(() => setMessage(null), 4000);
@@ -721,6 +756,70 @@ function App() {
                 style={styles.input}
               />
             </div>
+            {mode === 'sell' && selectedCoin === 'eth' && (
+              <div style={styles.gasFeeRow}>
+                <label style={styles.label}>Gas fee</label>
+                <div style={styles.gasSliderRow}>
+                  <input
+                    type="range"
+                    min="0"
+                    max="2"
+                    step="1"
+                    value={gasTier === 'low' ? 0 : gasTier === 'medium' ? 1 : 2}
+                    onChange={(e) => {
+                      const v = parseInt(e.target.value, 10);
+                      setGasTier(v === 0 ? 'low' : v === 1 ? 'medium' : 'high');
+                    }}
+                    style={styles.gasSlider}
+                  />
+                  <div style={styles.gasLabels}>
+                    <span>Low (0.001 ETH)</span>
+                    <span>Medium (0.003 ETH)</span>
+                    <span>Fast (0.008 ETH)</span>
+                  </div>
+                </div>
+                <p style={styles.gasFeePreview}>
+                  ≈ {formatUsd((GAS_FEE_ETH[gasTier] ?? GAS_FEE_ETH.medium) * (prices.eth || 0))} at current ETH price
+                </p>
+              </div>
+            )}
+            {mode === 'sell' && selectedCoin === 'btc' && (
+              <div style={styles.gasFeeRow}>
+                <label style={styles.label}>Transaction fee</label>
+                <div style={styles.gasSliderRow}>
+                  <input
+                    type="range"
+                    min="0"
+                    max="2"
+                    step="1"
+                    value={btcFeeTier === 'low' ? 0 : btcFeeTier === 'medium' ? 1 : 2}
+                    onChange={(e) => {
+                      const v = parseInt(e.target.value, 10);
+                      setBtcFeeTier(v === 0 ? 'low' : v === 1 ? 'medium' : 'high');
+                    }}
+                    style={styles.gasSlider}
+                  />
+                  <div style={styles.gasLabels}>
+                    <span>Low (15 sat/byte)</span>
+                    <span>Medium (50 sat/byte)</span>
+                    <span>Fast (150 sat/byte)</span>
+                  </div>
+                </div>
+                <p style={styles.gasFeePreview}>
+                  ≈ {formatCrypto(btcFeeBtc(btcFeeTier))} BTC ({formatUsd(btcFeeBtc(btcFeeTier) * (prices.btc || 0))}) at current BTC price
+                </p>
+              </div>
+            )}
+            {mode === 'sell' && selectedCoin === 'sol' && (
+              <p style={styles.feeBlurb}>
+                Transaction fee: {formatCrypto(SOL_FEE_SOL)} SOL ({formatUsd(SOL_FEE_SOL * (prices.sol || 0))}) will be deducted from your sale.
+              </p>
+            )}
+            {mode === 'sell' && selectedCoin === 'doge' && (
+              <p style={styles.feeBlurb}>
+                Transaction fee: {formatCrypto(DOGE_FEE_DOGE)} DOGE ({formatUsd(DOGE_FEE_DOGE * (prices.doge || 0))}) will be deducted from your sale.
+              </p>
+            )}
             <button style={styles.tradeButton} onClick={handleTrade}>
               {mode === 'buy' ? 'Buy' : 'Sell'} {coin?.symbol}
             </button>
@@ -974,6 +1073,35 @@ const styles = {
     marginBottom: '18px',
   },
   inputGroup: { marginBottom: '18px' },
+  gasFeeRow: {
+    marginBottom: '18px',
+  },
+  gasSliderRow: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 8,
+  },
+  gasSlider: {
+    width: '100%',
+    accentColor: '#b56b9e',
+  },
+  gasLabels: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    fontSize: '0.75rem',
+    color: '#6b6578',
+  },
+  gasFeePreview: {
+    margin: '8px 0 0',
+    fontSize: '0.85rem',
+    color: '#6b6578',
+  },
+  feeBlurb: {
+    margin: '0 0 14px',
+    fontSize: '0.9rem',
+    color: '#6b6578',
+    lineHeight: 1.4,
+  },
   input: {
     width: '100%',
     padding: '12px 16px',
